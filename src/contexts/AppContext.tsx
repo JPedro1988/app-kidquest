@@ -42,16 +42,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(saved);
           setState({
             ...parsed,
-            profile: parsed.profile || null, // Preserve profile from localStorage
+            profile: parsed.profile || null,
             tasks: parsed.tasks.map((t: Task) => ({
               ...t,
               createdAt: new Date(t.createdAt),
               completedAt: t.completedAt ? new Date(t.completedAt) : undefined,
               approvedAt: t.approvedAt ? new Date(t.approvedAt) : undefined,
+              dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
             })),
             rewards: parsed.rewards.map((r: Reward) => ({
               ...r,
               claimedAt: r.claimedAt ? new Date(r.claimedAt) : undefined,
+              expiresAt: r.expiresAt ? new Date(r.expiresAt) : undefined,
             })),
           });
         }

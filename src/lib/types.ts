@@ -13,6 +13,8 @@ export interface Task {
   photoProof?: string;
   childId?: string;
   category?: string;
+  dueDate?: Date; // Data de objetivo da tarefa
+  rewardId?: string; // ID da recompensa associada
 }
 
 export interface Reward {
@@ -24,6 +26,7 @@ export interface Reward {
   claimed: boolean;
   claimedAt?: Date;
   category?: 'small' | 'medium' | 'large' | 'epic';
+  expiresAt?: Date; // Data de validade da recompensa
 }
 
 export interface Child {

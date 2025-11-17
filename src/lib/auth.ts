@@ -1,266 +1,155 @@
-import { supabase } from './supabase'
-import bcrypt from 'bcryptjs'
+// KidQuest - Auth Types and Utilities (LocalStorage based)
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  profile: 'parent' | 'child';
+  familyCode?: string;
+  parentId?: string;
+  age?: number;
+  createdAt: Date;
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+}
 
 // Gerar código único de família (6 caracteres)
 export function generateFamilyCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let code = ''
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
   for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length))
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return code
+  return code;
 }
 
-// Registrar novo usuário
-export async function registerUser(data: {
-  email: string
-  password: string
-  name: string
-  profile: 'parent' | 'child'
-  familyCode?: string
-  age?: number
-}) {
-  try {
-    // Hash da senha
-    const passwordHash = await bcrypt.hash(data.password, 10)
+// Gerar ID único
+export function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
 
-    // Se for pai, gerar código de família
-    let familyCode = data.familyCode
-    let parentId = null
+// Registrar novo usuário (localStorage)
+export function registerUser(data: {
+  email: string;
+  password: string;
+  name: string;
+  profile: 'parent' | 'child';
+  familyCode?: string;
+  age?: number;
+}): { user: User | null; error: string | null } {
+  try {
+    // Verificar se email já existe
+    const users = getAllUsers();
+    const existingUser = users.find(u => u.email === data.email);
+    
+    if (existingUser) {
+      return { user: null, error: 'Email já cadastrado' };
+    }
+
+    let familyCode = data.familyCode;
+    let parentId = undefined;
 
     if (data.profile === 'parent') {
-      familyCode = generateFamilyCode()
+      familyCode = generateFamilyCode();
     } else if (data.profile === 'child' && data.familyCode) {
       // Buscar pai pelo código de família
-      const { data: parent, error: parentError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('family_code', data.familyCode)
-        .eq('profile', 'parent')
-        .single()
-
-      if (parentError || !parent) {
-        throw new Error('Código de família inválido')
+      const parent = users.find(u => u.familyCode === data.familyCode && u.profile === 'parent');
+      
+      if (!parent) {
+        return { user: null, error: 'Código de família inválido' };
       }
-
-      parentId = parent.id
+      
+      parentId = parent.id;
     }
 
-    // Inserir usuário
-    const { data: user, error } = await supabase
-      .from('users')
-      .insert({
-        email: data.email,
-        password_hash: passwordHash,
-        name: data.name,
-        profile: data.profile,
-        family_code: familyCode,
-        parent_id: parentId,
-        age: data.age
-      })
-      .select()
-      .single()
+    const user: User = {
+      id: generateId(),
+      email: data.email,
+      name: data.name,
+      profile: data.profile,
+      familyCode,
+      parentId,
+      age: data.age,
+      createdAt: new Date(),
+    };
 
-    if (error) throw error
+    // Salvar usuário
+    users.push(user);
+    saveAllUsers(users);
 
-    // Se for criança, criar relacionamento na tabela children
-    if (data.profile === 'child' && parentId) {
-      await supabase.from('children').insert({
-        parent_id: parentId,
-        child_id: user.id,
-        name: data.name,
-        age: data.age
-      })
-    }
+    // Salvar senha separadamente (hash simples)
+    const passwords = getPasswords();
+    passwords[user.id] = btoa(data.password); // Base64 encoding (não é seguro para produção)
+    savePasswords(passwords);
 
-    return { user, error: null }
+    return { user, error: null };
   } catch (error: any) {
-    return { user: null, error: error.message }
+    return { user: null, error: error.message };
   }
 }
 
-// Login de usuário
-export async function loginUser(email: string, password: string) {
+// Login de usuário (localStorage)
+export function loginUser(email: string, password: string): { user: User | null; error: string | null } {
   try {
-    // Buscar usuário por email
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single()
+    const users = getAllUsers();
+    const user = users.find(u => u.email === email);
 
-    if (error || !user) {
-      throw new Error('Email ou senha incorretos')
+    if (!user) {
+      return { user: null, error: 'Email ou senha incorretos' };
     }
 
     // Verificar senha
-    const passwordMatch = await bcrypt.compare(password, user.password_hash)
-
-    if (!passwordMatch) {
-      throw new Error('Email ou senha incorretos')
+    const passwords = getPasswords();
+    const storedPassword = passwords[user.id];
+    
+    if (!storedPassword || atob(storedPassword) !== password) {
+      return { user: null, error: 'Email ou senha incorretos' };
     }
 
-    return { user, error: null }
+    return { user, error: null };
   } catch (error: any) {
-    return { user: null, error: error.message }
+    return { user: null, error: error.message };
   }
 }
 
-// Buscar filhos de um pai
-export async function getChildren(parentId: string) {
-  const { data, error } = await supabase
-    .from('children')
-    .select(`
-      *,
-      child:child_id (
-        id,
-        name,
-        email,
-        age
-      )
-    `)
-    .eq('parent_id', parentId)
-
-  return { data, error }
+// Helpers para localStorage
+function getAllUsers(): User[] {
+  if (typeof window === 'undefined') return [];
+  
+  try {
+    const data = localStorage.getItem('kidquest-users');
+    if (!data) return [];
+    
+    const users = JSON.parse(data);
+    return users.map((u: any) => ({
+      ...u,
+      createdAt: new Date(u.createdAt),
+    }));
+  } catch {
+    return [];
+  }
 }
 
-// Buscar tarefas de uma criança
-export async function getTasks(childId: string) {
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('child_id', childId)
-    .order('created_at', { ascending: false })
-
-  return { data, error }
+function saveAllUsers(users: User[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('kidquest-users', JSON.stringify(users));
 }
 
-// Buscar recompensas de uma criança
-export async function getRewards(childId: string) {
-  const { data, error } = await supabase
-    .from('rewards')
-    .select('*')
-    .eq('child_id', childId)
-    .order('created_at', { ascending: false })
-
-  return { data, error }
+function getPasswords(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  
+  try {
+    const data = localStorage.getItem('kidquest-passwords');
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
 }
 
-// Criar tarefa
-export async function createTask(data: {
-  childId: string
-  parentId: string
-  title: string
-  description?: string
-  points: number
-}) {
-  const { data: task, error } = await supabase
-    .from('tasks')
-    .insert({
-      child_id: data.childId,
-      parent_id: data.parentId,
-      title: data.title,
-      description: data.description,
-      points: data.points
-    })
-    .select()
-    .single()
-
-  return { task, error }
-}
-
-// Criar recompensa
-export async function createReward(data: {
-  childId: string
-  parentId: string
-  title: string
-  description?: string
-  pointsRequired: number
-}) {
-  const { data: reward, error } = await supabase
-    .from('rewards')
-    .insert({
-      child_id: data.childId,
-      parent_id: data.parentId,
-      title: data.title,
-      description: data.description,
-      points_required: data.pointsRequired
-    })
-    .select()
-    .single()
-
-  return { reward, error }
-}
-
-// Completar tarefa
-export async function completeTask(taskId: string) {
-  const { data, error } = await supabase
-    .from('tasks')
-    .update({
-      completed: true,
-      completed_at: new Date().toISOString()
-    })
-    .eq('id', taskId)
-    .select()
-    .single()
-
-  return { data, error }
-}
-
-// Resgatar recompensa
-export async function redeemReward(rewardId: string) {
-  const { data, error } = await supabase
-    .from('rewards')
-    .update({
-      redeemed: true,
-      redeemed_at: new Date().toISOString()
-    })
-    .eq('id', rewardId)
-    .select()
-    .single()
-
-  return { data, error }
-}
-
-// Deletar criança
-export async function deleteChild(childId: string) {
-  const { error } = await supabase
-    .from('children')
-    .delete()
-    .eq('child_id', childId)
-
-  return { error }
-}
-
-// Deletar recompensa
-export async function deleteReward(rewardId: string) {
-  const { error } = await supabase
-    .from('rewards')
-    .delete()
-    .eq('id', rewardId)
-
-  return { error }
-}
-
-// Atualizar criança
-export async function updateChild(childId: string, data: { name: string; age: number }) {
-  const { error } = await supabase
-    .from('users')
-    .update({
-      name: data.name,
-      age: data.age,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', childId)
-
-  // Atualizar também na tabela children
-  await supabase
-    .from('children')
-    .update({
-      name: data.name,
-      age: data.age
-    })
-    .eq('child_id', childId)
-
-  return { error }
+function savePasswords(passwords: Record<string, string>): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('kidquest-passwords', JSON.stringify(passwords));
 }
