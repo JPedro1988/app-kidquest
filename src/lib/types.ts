@@ -1,20 +1,30 @@
-// KidQuest - Types
-export type ProfileType = 'parent' | 'child';
+export type ProfileType = 'parent' | 'child' | null;
+
+export interface Child {
+  id: string;
+  name: string;
+  age?: number;
+  avatar?: string;
+  totalPoints: number;
+  currentPoints: number;
+}
+
+export type TaskStatus = 'pending' | 'completed' | 'approved' | 'rejected';
+export type ChallengeType = 'daily' | 'weekly' | 'monthly';
 
 export interface Task {
   id: string;
   title: string;
   description: string;
   points: number;
-  status: 'pending' | 'completed' | 'approved';
+  status: TaskStatus;
   createdAt: Date;
+  childId: string;
+  isRecurring?: boolean;
+  challengeType?: ChallengeType; // Novo campo para tipo de desafio
+  dueDate?: Date;
   completedAt?: Date;
-  approvedAt?: Date;
   photoProof?: string;
-  childId?: string;
-  category?: string;
-  dueDate?: Date; // Data de objetivo da tarefa
-  rewardId?: string; // ID da recompensa associada
 }
 
 export interface Reward {
@@ -22,52 +32,17 @@ export interface Reward {
   title: string;
   description: string;
   pointsRequired: number;
-  imageUrl?: string;
   claimed: boolean;
+  claimedBy?: string;
   claimedAt?: Date;
-  category?: 'small' | 'medium' | 'large' | 'epic';
-  expiresAt?: Date; // Data de validade da recompensa
-}
-
-export interface Child {
-  id: string;
-  name: string;
-  avatar?: string;
-  totalPoints: number;
-  currentPoints: number;
-  age?: number;
+  paid?: boolean;
+  expiresAt?: Date;
 }
 
 export interface AppState {
-  profile: ProfileType | null;
+  profile: ProfileType;
   selectedChild: Child | null;
   children: Child[];
   tasks: Task[];
   rewards: Reward[];
-}
-
-// Suggestion Types
-export interface TaskSuggestion {
-  id: string;
-  title: string;
-  description: string;
-  points: number;
-  category: string;
-  ageRange: string;
-}
-
-export interface RewardSuggestion {
-  id: string;
-  title: string;
-  description: string;
-  pointsRequired: number;
-  category: 'small' | 'medium' | 'large' | 'epic';
-}
-
-export interface TaskPackage {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  tasks: Omit<TaskSuggestion, 'id' | 'ageRange'>[];
 }

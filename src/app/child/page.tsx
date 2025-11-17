@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { LogOut, Star, Trophy, Camera, CheckCircle, Gift, Zap, Calendar, Share2, Facebook, Twitter, Instagram, Target, TrendingUp, Sparkles, X, Upload } from 'lucide-react';
 import { Child, ChallengeType } from '@/lib/types';
-import { ThemeToggle } from '@/components/custom/ThemeToggle';
+import { Logo } from '@/components/custom/Logo';
 
 const formatDate = (date: Date | undefined) => {
   if (!date) return null;
@@ -238,9 +238,7 @@ export default function ChildDashboard() {
         <Card className="w-full max-w-2xl border-4 border-white/30 shadow-2xl backdrop-blur-md bg-white/95 dark:bg-gray-900/95 relative z-10">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg animate-pulse-glow">
-                <Sparkles className="w-8 h-8 text-white" />
-              </div>
+              <Logo size="lg" showText={false} />
             </div>
             <CardTitle className="text-3xl sm:text-4xl bg-gradient-to-r from-pink-600 to-orange-600 bg-clip-text text-transparent dark:from-pink-400 dark:to-orange-400">🎮 Quem está jogando?</CardTitle>
             <CardDescription className="text-base sm:text-lg">Selecione seu perfil para começar a aventura</CardDescription>
@@ -465,7 +463,6 @@ export default function ChildDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <ThemeToggle />
               <Button onClick={() => setSelectedChild(null)} variant="secondary" className="gap-2 shadow-lg text-sm sm:text-base">
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">Trocar</span>

@@ -11,12 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LogOut, Plus, Gift, ListTodo, Users, TrendingUp, CheckCircle, XCircle, Clock, Lightbulb, Sparkles, Package, Pencil, Trash2, Home, Calendar, History, AlertTriangle, Repeat, Star, Trophy, Zap, Target, Camera, Upload } from 'lucide-react';
 import { Task, Reward, Child } from '@/lib/types';
 import { taskCategories, taskPackages, getTasksByCategory, getRewardsByCategory, smartTips } from '@/lib/suggestions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ThemeToggle } from '@/components/custom/ThemeToggle';
+import { Logo } from '@/components/custom/Logo';
 
 export default function ParentDashboard() {
   const { children, tasks, rewards, addChild, addTask, addReward, updateTask, deleteTask, updateChildPoints, updateChild, deleteChild, deleteReward, updateReward } = useApp();
@@ -33,8 +34,8 @@ export default function ParentDashboard() {
   const [openRewardDialog, setOpenRewardDialog] = useState(false);
   const [currentTip, setCurrentTip] = useState(0);
 
-  const [selectedChildForRewards, setSelectedChildForRewards] = useState<string>('');
-  const [selectedChildForTasks, setSelectedChildForTasks] = useState<string>('');
+  const [selectedChildForRewards, setSelectedChildForRewards] = useState<string>('all');
+  const [selectedChildForTasks, setSelectedChildForTasks] = useState<string>('all');
 
   const [editingChild, setEditingChild] = useState<Child | null>(null);
   const [editChildDialog, setEditChildDialog] = useState(false);
@@ -64,6 +65,8 @@ export default function ParentDashboard() {
   const [editSuggestionDialog, setEditSuggestionDialog] = useState(false);
   const [editSuggestionPoints, setEditSuggestionPoints] = useState(10);
   const [editSuggestionDescription, setEditSuggestionDescription] = useState('');
+  const [editSuggestionIsRecurring, setEditSuggestionIsRecurring] = useState(false);
+  const [editSuggestionChallengeType, setEditSuggestionChallengeType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [suggestionChildId, setSuggestionChildId] = useState('');
 
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -234,6 +237,8 @@ export default function ParentDashboard() {
     setSuggestionChildId(childId);
     setEditSuggestionPoints(suggestion.points);
     setEditSuggestionDescription(suggestion.description);
+    setEditSuggestionIsRecurring(false);
+    setEditSuggestionChallengeType('daily');
     setEditSuggestionDialog(true);
   };
 
@@ -248,7 +253,9 @@ export default function ParentDashboard() {
         createdAt: new Date(),
         childId: suggestionChildId,
         category: editingSuggestion.category,
-        challengeType: 'daily',
+        isRecurring: editSuggestionIsRecurring,
+        challengeType: editSuggestionChallengeType,
+        lastRecurredAt: editSuggestionIsRecurring ? new Date() : undefined,
       };
       addTask(task);
       
@@ -355,6 +362,10 @@ export default function ParentDashboard() {
       category: suggestion.category,
     };
     addReward(reward);
+    
+    setConfirmationMessage(`✅ Recompensa "${suggestion.title}" adicionada!`);
+    setShowConfirmation(true);
+    setTimeout(() => setShowConfirmation(false), 3000);
   };
 
   const handleApproveTask = (task: Task) => {
@@ -435,7 +446,7 @@ export default function ParentDashboard() {
   const activeTasks = tasks.filter(t => t.status !== 'deleted');
 
   const filteredAndSortedTasks = activeTasks
-    .filter(task => !selectedChildForTasks || task.childId === selectedChildForTasks)
+    .filter(task => selectedChildForTasks === 'all' || task.childId === selectedChildForTasks)
     .sort((a, b) => {
       if (a.status === 'pending' && b.status !== 'pending') return -1;
       if (a.status !== 'pending' && b.status === 'pending') return 1;
@@ -444,7 +455,7 @@ export default function ParentDashboard() {
 
   const claimedRewardsByChild = rewards.filter(r => {
     if (!r.claimed) return false;
-    if (!selectedChildForRewards) return true;
+    if (selectedChildForRewards === 'all') return true;
     return r.claimedBy === selectedChildForRewards;
   });
 
@@ -455,9 +466,7 @@ export default function ParentDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg animate-pulse-glow">
-                <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-              </div>
+              <Logo size="md" showText={false} />
               <div>
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-lg flex items-center gap-2">
                   <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 animate-pulse-glow" />
@@ -467,7 +476,6 @@ export default function ParentDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <ThemeToggle />
               <Button onClick={() => router.push('/')} variant="secondary" className="gap-2 shadow-lg text-sm sm:text-base">
                 <Home className="w-4 h-4" />
                 <span className="hidden sm:inline">Início</span>
@@ -660,6 +668,321 @@ export default function ParentDashboard() {
             <Button onClick={handleUpdateChild} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg">
               <CheckCircle className="w-4 h-4 mr-2" />
               Salvar Alterações
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Adicionar Tarefa */}
+      <Dialog open={openTaskDialog} onOpenChange={setOpenTaskDialog}>
+        <DialogContent className="border-4 border-green-300 dark:border-green-600 max-w-md mx-4">
+          <DialogHeader>
+            <DialogTitle className="text-xl sm:text-2xl">Criar Nova Tarefa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label>Título</Label>
+              <Input
+                value={newTask.title}
+                onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                placeholder="Ex: Arrumar a cama"
+              />
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Textarea
+                value={newTask.description}
+                onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                placeholder="Descreva a tarefa..."
+              />
+            </div>
+            <div>
+              <Label>Pontos</Label>
+              <Input
+                type="number"
+                value={newTask.points}
+                onChange={(e) => setNewTask({ ...newTask, points: Number(e.target.value) })}
+                min={1}
+              />
+            </div>
+            <div>
+              <Label>Atribuir para</Label>
+              <Select value={newTask.childId} onValueChange={(value) => setNewTask({ ...newTask, childId: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma criança" />
+                </SelectTrigger>
+                <SelectContent>
+                  {children.length > 0 ? children.map(child => (
+                    <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+                  )) : (
+                    <SelectItem value="no-children" disabled>Nenhuma criança cadastrada</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Data de Vencimento (opcional)</Label>
+              <Input
+                type="date"
+                value={newTask.dueDate}
+                onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={newTask.isRecurring}
+                onCheckedChange={(checked) => setNewTask({ ...newTask, isRecurring: checked as boolean })}
+              />
+              <Label>Tarefa Recorrente</Label>
+            </div>
+            {newTask.isRecurring && (
+              <div>
+                <Label>Tipo de Recorrência</Label>
+                <Select value={newTask.challengeType} onValueChange={(value: 'daily' | 'weekly' | 'monthly') => setNewTask({ ...newTask, challengeType: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">⚡ Diário</SelectItem>
+                    <SelectItem value="weekly">📈 Semanal</SelectItem>
+                    <SelectItem value="monthly">🏆 Mensal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button onClick={handleAddTask} className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg">
+              <Plus className="w-4 h-4 mr-2" />
+              Criar Tarefa
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Editar Tarefa */}
+      <Dialog open={editTaskDialog} onOpenChange={setEditTaskDialog}>
+        <DialogContent className="border-4 border-green-300 dark:border-green-600 max-w-md mx-4">
+          <DialogHeader>
+            <DialogTitle className="text-xl sm:text-2xl">Editar Tarefa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label>Título</Label>
+              <Input
+                value={editTaskTitle}
+                onChange={(e) => setEditTaskTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Textarea
+                value={editTaskDescription}
+                onChange={(e) => setEditTaskDescription(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Pontos</Label>
+              <Input
+                type="number"
+                value={editTaskPoints}
+                onChange={(e) => setEditTaskPoints(Number(e.target.value))}
+                min={1}
+              />
+            </div>
+            <div>
+              <Label>Data de Vencimento (opcional)</Label>
+              <Input
+                type="date"
+                value={editTaskDueDate}
+                onChange={(e) => setEditTaskDueDate(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={editTaskIsRecurring}
+                onCheckedChange={(checked) => setEditTaskIsRecurring(checked as boolean)}
+              />
+              <Label>Tarefa Recorrente</Label>
+            </div>
+            {editTaskIsRecurring && (
+              <div>
+                <Label>Tipo de Recorrência</Label>
+                <Select value={editTaskChallengeType} onValueChange={(value: 'daily' | 'weekly' | 'monthly') => setEditTaskChallengeType(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">⚡ Diário</SelectItem>
+                    <SelectItem value="weekly">📈 Semanal</SelectItem>
+                    <SelectItem value="monthly">🏆 Mensal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button onClick={handleUpdateTask} className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Salvar Alterações
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Adicionar Recompensa */}
+      <Dialog open={openRewardDialog} onOpenChange={setOpenRewardDialog}>
+        <DialogContent className="border-4 border-pink-300 dark:border-pink-600 max-w-md mx-4">
+          <DialogHeader>
+            <DialogTitle className="text-xl sm:text-2xl">Criar Nova Recompensa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label>Título</Label>
+              <Input
+                value={newReward.title}
+                onChange={(e) => setNewReward({ ...newReward, title: e.target.value })}
+                placeholder="Ex: 30 minutos de videogame"
+              />
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Textarea
+                value={newReward.description}
+                onChange={(e) => setNewReward({ ...newReward, description: e.target.value })}
+                placeholder="Descreva a recompensa..."
+              />
+            </div>
+            <div>
+              <Label>Pontos Necessários</Label>
+              <Input
+                type="number"
+                value={newReward.pointsRequired}
+                onChange={(e) => setNewReward({ ...newReward, pointsRequired: Number(e.target.value) })}
+                min={1}
+              />
+            </div>
+            <div>
+              <Label>Data de Expiração (opcional)</Label>
+              <Input
+                type="date"
+                value={newReward.expiresAt}
+                onChange={(e) => setNewReward({ ...newReward, expiresAt: e.target.value })}
+              />
+            </div>
+            <Button onClick={handleAddReward} className="w-full bg-gradient-to-r from-pink-600 to-orange-600 hover:from-pink-700 hover:to-orange-700 shadow-lg">
+              <Plus className="w-4 h-4 mr-2" />
+              Criar Recompensa
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Editar Recompensa */}
+      <Dialog open={editRewardDialog} onOpenChange={setEditRewardDialog}>
+        <DialogContent className="border-4 border-pink-300 dark:border-pink-600 max-w-md mx-4">
+          <DialogHeader>
+            <DialogTitle className="text-xl sm:text-2xl">Editar Recompensa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label>Título</Label>
+              <Input
+                value={editRewardTitle}
+                onChange={(e) => setEditRewardTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Textarea
+                value={editRewardDescription}
+                onChange={(e) => setEditRewardDescription(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Pontos Necessários</Label>
+              <Input
+                type="number"
+                value={editRewardPoints}
+                onChange={(e) => setEditRewardPoints(Number(e.target.value))}
+                min={1}
+              />
+            </div>
+            <div>
+              <Label>Data de Expiração (opcional)</Label>
+              <Input
+                type="date"
+                value={editRewardExpiresAt}
+                onChange={(e) => setEditRewardExpiresAt(e.target.value)}
+              />
+            </div>
+            <Button onClick={handleUpdateReward} className="w-full bg-gradient-to-r from-pink-600 to-orange-600 hover:from-pink-700 hover:to-orange-700 shadow-lg">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Salvar Alterações
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Editar Sugestão */}
+      <Dialog open={editSuggestionDialog} onOpenChange={setEditSuggestionDialog}>
+        <DialogContent className="border-4 border-purple-300 dark:border-purple-600 max-w-md mx-4">
+          <DialogHeader>
+            <DialogTitle className="text-xl sm:text-2xl">Personalizar Tarefa Sugerida</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label>Pontos</Label>
+              <Input
+                type="number"
+                value={editSuggestionPoints}
+                onChange={(e) => setEditSuggestionPoints(Number(e.target.value))}
+                min={1}
+              />
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Textarea
+                value={editSuggestionDescription}
+                onChange={(e) => setEditSuggestionDescription(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Atribuir para</Label>
+              <Select value={suggestionChildId} onValueChange={setSuggestionChildId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma criança" />
+                </SelectTrigger>
+                <SelectContent>
+                  {children.length > 0 ? children.map(child => (
+                    <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+                  )) : (
+                    <SelectItem value="no-children" disabled>Nenhuma criança cadastrada</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={editSuggestionIsRecurring}
+                onCheckedChange={(checked) => setEditSuggestionIsRecurring(checked as boolean)}
+              />
+              <Label>Tarefa Recorrente</Label>
+            </div>
+            {editSuggestionIsRecurring && (
+              <div>
+                <Label>Tipo de Recorrência</Label>
+                <Select value={editSuggestionChallengeType} onValueChange={(value: 'daily' | 'weekly' | 'monthly') => setEditSuggestionChallengeType(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">⚡ Diário</SelectItem>
+                    <SelectItem value="weekly">📈 Semanal</SelectItem>
+                    <SelectItem value="monthly">🏆 Mensal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button onClick={handleAddEditedSuggestion} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Atribuir Tarefa
             </Button>
           </div>
         </DialogContent>
@@ -919,6 +1242,250 @@ export default function ParentDashboard() {
             </Card>
           </TabsContent>
 
+          {/* Tasks Tab */}
+          <TabsContent value="tasks" className="space-y-6">
+            <Card className="border-4 border-green-200 dark:border-green-700 shadow-xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-md">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+                    <ListTodo className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+                    Gerenciar Tarefas
+                  </CardTitle>
+                  <Button onClick={() => setOpenTaskDialog(true)} className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nova Tarefa
+                  </Button>
+                </div>
+                <div className="mt-4">
+                  <Label>Filtrar por criança</Label>
+                  <Select value={selectedChildForTasks} onValueChange={setSelectedChildForTasks}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas as crianças" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as crianças</SelectItem>
+                      {children.map(child => (
+                        <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {filteredAndSortedTasks.length === 0 ? (
+                  <div className="text-center py-12">
+                    <ListTodo className="w-16 h-16 sm:w-20 sm:h-20 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-500 dark:text-gray-400 text-base sm:text-lg mb-4">Nenhuma tarefa criada</p>
+                    <Button onClick={() => setOpenTaskDialog(true)} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Criar Primeira Tarefa
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredAndSortedTasks.map(task => {
+                      const child = children.find(c => c.id === task.childId);
+                      return (
+                        <Card key={task.id} className="border-l-8 border-l-green-500 shadow-lg hover:shadow-2xl transition-all bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900 dark:to-emerald-900">
+                          <CardContent className="pt-6">
+                            <div className="flex flex-col lg:flex-row gap-4">
+                              <div className="flex-1 space-y-3">
+                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                                  <div>
+                                    <h4 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100">{task.title}</h4>
+                                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">{task.description}</p>
+                                  </div>
+                                  <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-sm px-3 py-1 w-fit">
+                                    <Star className="w-4 h-4 mr-1 fill-white" />
+                                    +{task.points} XP
+                                  </Badge>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {child && (
+                                    <Badge variant="outline" className="bg-purple-50 dark:bg-purple-900 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-600">
+                                      <Users className="w-3 h-3 mr-1" />
+                                      {child.name}
+                                    </Badge>
+                                  )}
+                                  <Badge variant="outline" className={
+                                    task.status === 'pending' ? 'bg-yellow-50 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-600' :
+                                    task.status === 'completed' ? 'bg-orange-50 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-600' :
+                                    task.status === 'approved' ? 'bg-green-50 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-600' :
+                                    'bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-300 border-red-300 dark:border-red-600'
+                                  }>
+                                    {task.status === 'pending' && '⏳ Pendente'}
+                                    {task.status === 'completed' && '✅ Aguardando Aprovação'}
+                                    {task.status === 'approved' && '🎉 Aprovada'}
+                                    {task.status === 'rejected' && '❌ Rejeitada'}
+                                  </Badge>
+                                  {task.isRecurring && (
+                                    <Badge variant="outline" className="bg-cyan-50 dark:bg-cyan-900 text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-600">
+                                      <Repeat className="w-3 h-3 mr-1" />
+                                      {task.challengeType === 'daily' && 'Diário'}
+                                      {task.challengeType === 'weekly' && 'Semanal'}
+                                      {task.challengeType === 'monthly' && 'Mensal'}
+                                    </Badge>
+                                  )}
+                                  {task.dueDate && (
+                                    <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600">
+                                      <Calendar className="w-3 h-3 mr-1" />
+                                      {formatDate(task.dueDate)}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex lg:flex-col gap-2 lg:w-48">
+                                {task.status === 'pending' && (
+                                  <Button
+                                    onClick={() => handleMarkTaskAsCompleted(task.id)}
+                                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg"
+                                  >
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    Marcar Concluída
+                                  </Button>
+                                )}
+                                <Button
+                                  onClick={() => handleEditTask(task)}
+                                  variant="outline"
+                                  className="flex-1"
+                                >
+                                  <Pencil className="w-4 h-4 mr-2" />
+                                  Editar
+                                </Button>
+                                <Button
+                                  onClick={() => confirmDelete('task', task.id)}
+                                  variant="outline"
+                                  className="flex-1 text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Excluir
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Rewards Tab */}
+          <TabsContent value="rewards" className="space-y-6">
+            <Card className="border-4 border-pink-200 dark:border-pink-700 shadow-xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-md">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+                    <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-pink-600" />
+                    Gerenciar Recompensas
+                  </CardTitle>
+                  <Button onClick={() => setOpenRewardDialog(true)} className="w-full sm:w-auto bg-gradient-to-r from-pink-600 to-orange-600 hover:from-pink-700 hover:to-orange-700 shadow-lg">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nova Recompensa
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {rewards.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Gift className="w-16 h-16 sm:w-20 sm:h-20 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-500 dark:text-gray-400 text-base sm:text-lg mb-4">Nenhuma recompensa criada</p>
+                    <Button onClick={() => setOpenRewardDialog(true)} className="bg-gradient-to-r from-pink-600 to-orange-600 hover:from-pink-700 hover:to-orange-700 shadow-lg">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Criar Primeira Recompensa
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {rewards.map(reward => {
+                      const claimedChild = reward.claimedBy ? children.find(c => c.id === reward.claimedBy) : null;
+                      return (
+                        <Card key={reward.id} className={`border-4 shadow-lg hover:scale-105 transition-transform ${
+                          reward.claimed 
+                            ? 'border-gray-300 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900' 
+                            : 'border-pink-200 dark:border-pink-700 bg-gradient-to-br from-pink-50 to-orange-50 dark:from-pink-900 dark:to-orange-900'
+                        }`}>
+                          <CardHeader className="text-center pb-3">
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-pink-400 to-orange-500 rounded-full mx-auto mb-3 flex items-center justify-center text-3xl sm:text-4xl shadow-lg">
+                              🎁
+                            </div>
+                            <CardTitle className="text-lg sm:text-xl">{reward.title}</CardTitle>
+                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">{reward.description}</p>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <Star className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500 fill-yellow-500" />
+                              <span className="text-xl sm:text-2xl font-bold text-pink-600 dark:text-pink-400">{reward.pointsRequired} pontos</span>
+                            </div>
+                            {reward.claimed ? (
+                              <div className="space-y-2">
+                                <Badge className="w-full bg-gray-500 text-white justify-center">
+                                  ✅ Resgatada
+                                </Badge>
+                                {claimedChild && (
+                                  <p className="text-xs text-center text-gray-600 dark:text-gray-300">
+                                    por {claimedChild.name}
+                                  </p>
+                                )}
+                                {reward.claimedAt && (
+                                  <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+                                    em {formatDate(reward.claimedAt)}
+                                  </p>
+                                )}
+                                {!reward.paid && (
+                                  <Button
+                                    onClick={() => handleMarkAsPaid(reward.id)}
+                                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg"
+                                  >
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    Marcar como Pago
+                                  </Button>
+                                )}
+                                {reward.paid && (
+                                  <Badge className="w-full bg-green-500 text-white justify-center">
+                                    💰 Pago
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => handleEditReward(reward)}
+                                  variant="outline"
+                                  className="flex-1 text-xs sm:text-sm"
+                                >
+                                  <Pencil className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                  Editar
+                                </Button>
+                                <Button
+                                  onClick={() => confirmDelete('reward', reward.id)}
+                                  variant="outline"
+                                  className="flex-1 text-xs sm:text-sm text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                  Excluir
+                                </Button>
+                              </div>
+                            )}
+                            {reward.expiresAt && !reward.claimed && (
+                              <p className="text-xs text-center text-orange-600 dark:text-orange-400">
+                                ⏰ Expira em {formatDate(reward.expiresAt)}
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Approvals Tab */}
           <TabsContent value="approvals" className="space-y-6">
             <Card className="border-4 border-orange-200 dark:border-orange-700 shadow-xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-md">
@@ -1020,7 +1587,307 @@ export default function ParentDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Outras tabs mantidas com melhorias de responsividade similares... */}
+          {/* Suggestions Tab */}
+          <TabsContent value="suggestions" className="space-y-6">
+            <Card className="border-4 border-purple-200 dark:border-purple-700 shadow-xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-md">
+              <CardHeader>
+                <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+                  Sugestões Inteligentes de Tarefas e Recompensas
+                </CardTitle>
+                <CardDescription className="text-sm sm:text-base">
+                  Explore pacotes prontos e sugestões por categoria para facilitar a criação de tarefas
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Pacotes de Tarefas */}
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2">
+                    <Package className="w-5 h-5 text-purple-600" />
+                    Pacotes de Tarefas Prontos
+                  </h3>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {taskPackages.map(pkg => (
+                      <Card key={pkg.id} className="border-2 border-purple-200 dark:border-purple-700 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900 dark:to-pink-900">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base sm:text-lg">{pkg.name}</CardTitle>
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">{pkg.description}</p>
+                          <Badge className="w-fit">{pkg.tasks.length} tarefas</Badge>
+                        </CardHeader>
+                        <CardContent>
+                          {children.length > 0 ? (
+                            <Select onValueChange={(childId) => handleAddTaskPackage(pkg.id, childId)}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Atribuir para..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {children.map(child => (
+                                  <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+                              Cadastre uma criança primeiro
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sugestões de Tarefas por Categoria */}
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2">
+                    <Target className="w-5 h-5 text-green-600" />
+                    Tarefas Sugeridas por Categoria
+                  </h3>
+                  {taskCategories.map(category => {
+                    const tasks = getTasksByCategory(category.id);
+                    return (
+                      <div key={category.id} className="mb-6">
+                        <h4 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2">
+                          <span className="text-2xl">{category.icon}</span>
+                          {category.name}
+                        </h4>
+                        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {tasks.map((task, idx) => (
+                            <Card key={idx} className="border-2 border-green-200 dark:border-green-700 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900 dark:to-emerald-900 hover:scale-105 transition-transform">
+                              <CardContent className="pt-4">
+                                <h5 className="font-bold text-sm sm:text-base mb-1">{task.title}</h5>
+                                <p className="text-xs text-gray-600 dark:text-gray-300 mb-2">{task.description}</p>
+                                <div className="flex items-center justify-between">
+                                  <Badge className="bg-green-500 text-white">
+                                    <Star className="w-3 h-3 mr-1 fill-white" />
+                                    {task.points} XP
+                                  </Badge>
+                                  <div className="flex gap-1">
+                                    {children.length > 0 && (
+                                      <>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleEditSuggestion(task, children[0]?.id || '')}
+                                          className="text-xs"
+                                        >
+                                          <Pencil className="w-3 h-3" />
+                                        </Button>
+                                        <Select onValueChange={(childId) => handleAddSuggestedTask(task, childId)}>
+                                          <SelectTrigger className="w-24 h-8 text-xs">
+                                            <SelectValue placeholder="+" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {children.map(child => (
+                                              <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}</div>
+
+                {/* Sugestões de Recompensas */}
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2">
+                    <Gift className="w-5 h-5 text-pink-600" />
+                    Recompensas Sugeridas
+                  </h3>
+                  {taskCategories.map(category => {
+                    const categoryRewards = getRewardsByCategory(category.id);
+                    return (
+                      <div key={category.id} className="mb-6">
+                        <h4 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2">
+                          <span className="text-2xl">{category.icon}</span>
+                          {category.name}
+                        </h4>
+                        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {categoryRewards.map((reward, idx) => (
+                            <Card key={idx} className="border-2 border-pink-200 dark:border-pink-700 bg-gradient-to-br from-pink-50 to-orange-50 dark:from-pink-900 dark:to-orange-900 hover:scale-105 transition-transform">
+                              <CardContent className="pt-4">
+                                <h5 className="font-bold text-sm sm:text-base mb-1">{reward.title}</h5>
+                                <p className="text-xs text-gray-600 dark:text-gray-300 mb-2">{reward.description}</p>
+                                <div className="flex items-center justify-between">
+                                  <Badge className="bg-pink-500 text-white">
+                                    <Star className="w-3 h-3 mr-1 fill-white" />
+                                    {reward.pointsRequired} pts
+                                  </Badge>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAddSuggestedReward(reward)}
+                                    className="bg-gradient-to-r from-pink-600 to-orange-600 hover:from-pink-700 hover:to-orange-700 text-white text-xs"
+                                  >
+                                    <Plus className="w-3 h-3 mr-1" />
+                                    Adicionar
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history" className="space-y-6">
+            <Card className="border-4 border-indigo-200 dark:border-indigo-700 shadow-xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-md">
+              <CardHeader>
+                <CardTitle className="text-xl sm:text-2xl flex items-center gap-2">
+                  <History className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
+                  Histórico de Atividades
+                </CardTitle>
+                <CardDescription className="text-sm sm:text-base">
+                  Visualize todas as tarefas aprovadas e recompensas resgatadas
+                </CardDescription>
+                <div className="mt-4">
+                  <Label>Filtrar por criança</Label>
+                  <Select value={selectedChildForRewards} onValueChange={setSelectedChildForRewards}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas as crianças" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as crianças</SelectItem>
+                      {children.map(child => (
+                        <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Tarefas Aprovadas */}
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    Tarefas Concluídas ({approvedTasks.length})
+                  </h3>
+                  {approvedTasks.length === 0 ? (
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-8">Nenhuma tarefa concluída ainda</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {approvedTasks
+                        .filter(task => selectedChildForRewards === 'all' || task.childId === selectedChildForRewards)
+                        .sort((a, b) => {
+                          const dateA = a.approvedAt || a.completedAt || a.createdAt;
+                          const dateB = b.approvedAt || b.completedAt || b.createdAt;
+                          return new Date(dateB).getTime() - new Date(dateA).getTime();
+                        })
+                        .map(task => {
+                          const child = children.find(c => c.id === task.childId);
+                          return (
+                            <Card key={task.id} className="border-l-4 border-l-green-500 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900 dark:to-emerald-900">
+                              <CardContent className="py-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="flex-1">
+                                    <h4 className="font-bold text-sm sm:text-base">{task.title}</h4>
+                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                      {child && (
+                                        <Badge variant="outline" className="text-xs">
+                                          <Users className="w-3 h-3 mr-1" />
+                                          {child.name}
+                                        </Badge>
+                                      )}
+                                      <Badge className="bg-green-500 text-white text-xs">
+                                        <Star className="w-3 h-3 mr-1 fill-white" />
+                                        +{task.points} XP
+                                      </Badge>
+                                      {task.approvedAt && (
+                                        <span className="text-xs text-gray-600 dark:text-gray-300">
+                                          {formatDate(task.approvedAt)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Recompensas Resgatadas */}
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold mb-4 flex items-center gap-2">
+                    <Gift className="w-5 h-5 text-pink-600" />
+                    Recompensas Resgatadas ({claimedRewardsByChild.length})
+                  </h3>
+                  {claimedRewardsByChild.length === 0 ? (
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-8">Nenhuma recompensa resgatada ainda</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {claimedRewardsByChild
+                        .sort((a, b) => {
+                          const dateA = a.claimedAt || new Date();
+                          const dateB = b.claimedAt || new Date();
+                          return new Date(dateB).getTime() - new Date(dateA).getTime();
+                        })
+                        .map(reward => {
+                          const child = children.find(c => c.id === reward.claimedBy);
+                          return (
+                            <Card key={reward.id} className="border-l-4 border-l-pink-500 bg-gradient-to-r from-pink-50 to-orange-50 dark:from-pink-900 dark:to-orange-900">
+                              <CardContent className="py-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="flex-1">
+                                    <h4 className="font-bold text-sm sm:text-base">{reward.title}</h4>
+                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                      {child && (
+                                        <Badge variant="outline" className="text-xs">
+                                          <Users className="w-3 h-3 mr-1" />
+                                          {child.name}
+                                        </Badge>
+                                      )}
+                                      <Badge className="bg-pink-500 text-white text-xs">
+                                        <Star className="w-3 h-3 mr-1 fill-white" />
+                                        {reward.pointsRequired} pts
+                                      </Badge>
+                                      {reward.claimedAt && (
+                                        <span className="text-xs text-gray-600 dark:text-gray-300">
+                                          {formatDate(reward.claimedAt)}
+                                        </span>
+                                      )}
+                                      {reward.paid && (
+                                        <Badge className="bg-green-500 text-white text-xs">
+                                          💰 Pago
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {!reward.paid && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleMarkAsPaid(reward.id)}
+                                      className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white text-xs"
+                                    >
+                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                      Marcar Pago
+                                    </Button>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
     </div>
