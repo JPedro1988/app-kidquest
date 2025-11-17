@@ -1,39 +1,16 @@
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
-import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Baby } from 'lucide-react';
+import { User, Baby, Zap } from 'lucide-react';
 
 export default function Home() {
-  const { isAuthenticated, user } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    // If user is authenticated, redirect to appropriate page
-    if (isAuthenticated && user) {
-      if (user.type === 'parent') {
-        router.push('/parent');
-      } else if (user.type === 'child') {
-        router.push('/child');
-      }
-    }
-  }, [isAuthenticated, user, router]);
-
-  const handleSelectProfile = (profile: 'parent' | 'child') => {
-    router.push('/login');
+  const handleQuickAccess = (route: string) => {
+    router.push(route);
   };
-
-  // Show loading while checking auth
-  if (isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center">
-        <div className="text-white text-xl">Carregando...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center p-4">
@@ -45,6 +22,26 @@ export default function Home() {
           <p className="text-xl md:text-2xl text-white/90 drop-shadow">
             Transforme tarefas em aventuras!
           </p>
+        </div>
+
+        {/* Quick Access Buttons for Testing */}
+        <div className="mb-6 flex justify-center gap-3">
+          <Button
+            onClick={() => handleQuickAccess('/parent')}
+            size="lg"
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+          >
+            <Zap className="w-5 h-5 mr-2" />
+            Acesso Pais
+          </Button>
+          <Button
+            onClick={() => handleQuickAccess('/child')}
+            size="lg"
+            className="bg-pink-600 hover:bg-pink-700 text-white shadow-lg"
+          >
+            <Zap className="w-5 h-5 mr-2" />
+            Acesso Criança
+          </Button>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -60,7 +57,7 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <Button
-                onClick={() => handleSelectProfile('parent')}
+                onClick={() => handleQuickAccess('/parent')}
                 className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg"
               >
                 Entrar como Responsável
@@ -86,7 +83,7 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <Button
-                onClick={() => handleSelectProfile('child')}
+                onClick={() => handleQuickAccess('/child')}
                 className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white shadow-lg"
               >
                 Entrar como Criança

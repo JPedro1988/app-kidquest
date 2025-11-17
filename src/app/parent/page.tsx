@@ -1,9 +1,8 @@
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
 import { useApp } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,46 +11,37 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Plus, Gift, ListTodo, Users, TrendingUp, CheckCircle, XCircle, Clock, Lightbulb, Sparkles, Package, Key } from 'lucide-react';
+import { LogOut, Plus, Gift, ListTodo, Users, TrendingUp, CheckCircle, XCircle, Clock, Lightbulb, Sparkles, Package, Pencil, Trash2, Home } from 'lucide-react';
 import { Task, Reward, Child } from '@/lib/types';
-import { taskCategories, taskSuggestions, taskPackages, rewardSuggestions, smartTips, filterTasksByAge, getTasksByCategory, getRewardsByCategory } from '@/lib/suggestions';
+import { taskCategories, taskPackages, getTasksByCategory, getRewardsByCategory, smartTips } from '@/lib/suggestions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function ParentDashboard() {
-  const { user, logout: authLogout } = useAuth();
-  const { profile, children, tasks, rewards, addChild, addTask, addReward, updateTask, updateChildPoints, updateChild, logout: appLogout } = useApp();
+  const { children, tasks, rewards, addChild, addTask, addReward, updateTask, deleteTask, updateChildPoints, updateChild, deleteChild, deleteReward } = useApp();
   const router = useRouter();
 
   const [newChildName, setNewChildName] = useState('');
   const [newChildAge, setNewChildAge] = useState<number>(6);
-  const [newTask, setNewTask] = useState({ title: '', description: '', points: 10, childId: '' });
+  const [newTask, setNewTask] = useState({ title: '', description: '', points: 10, childId: '', rewardId: '' });
   const [newReward, setNewReward] = useState({ title: '', description: '', pointsRequired: 50 });
   const [openChildDialog, setOpenChildDialog] = useState(false);
   const [openTaskDialog, setOpenTaskDialog] = useState(false);
   const [openRewardDialog, setOpenRewardDialog] = useState(false);
-  const [openSuggestionsDialog, setOpenSuggestionsDialog] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [currentTip, setCurrentTip] = useState(0);
 
-  useEffect(() => {
-    if (!user || user.type !== 'parent') {
-      router.push('/');
-    }
-  }, [user, router]);
+  // Estados para edição de criança
+  const [editingChild, setEditingChild] = useState<Child | null>(null);
+  const [editChildDialog, setEditChildDialog] = useState(false);
+  const [editChildName, setEditChildName] = useState('');
+  const [editChildAge, setEditChildAge] = useState<number>(6);
 
-  // Rotação de dicas
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTip((prev) => (prev + 1) % smartTips.length);
-    }, 8000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleLogout = () => {
-    authLogout();
-    appLogout();
-    router.push('/');
-  };
+  // Estados para edição de tarefa
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editTaskDialog, setEditTaskDialog] = useState(false);
+  const [editTaskTitle, setEditTaskTitle] = useState('');
+  const [editTaskDescription, setEditTaskDescription] = useState('');
+  const [editTaskPoints, setEditTaskPoints] = useState(10);
+  const [editTaskRewardId, setEditTaskRewardId] = useState('');
 
   const handleAddChild = () => {
     if (newChildName.trim()) {
@@ -69,6 +59,30 @@ export default function ParentDashboard() {
     }
   };
 
+  const handleEditChild = (child: Child) => {
+    setEditingChild(child);
+    setEditChildName(child.name);
+    setEditChildAge(child.age || 6);
+    setEditChildDialog(true);
+  };
+
+  const handleUpdateChild = () => {
+    if (editingChild && editChildName.trim()) {
+      updateChild(editingChild.id, {
+        name: editChildName,
+        age: editChildAge,
+      });
+      setEditChildDialog(false);
+      setEditingChild(null);
+    }
+  };
+
+  const handleDeleteChild = (childId: string) => {
+    if (confirm('Tem certeza que deseja excluir esta criança?')) {
+      deleteChild(childId);
+    }
+  };
+
   const handleAddTask = () => {
     if (newTask.title.trim() && newTask.childId) {
       const task: Task = {
@@ -79,10 +93,39 @@ export default function ParentDashboard() {
         status: 'pending',
         createdAt: new Date(),
         childId: newTask.childId,
+        rewardId: newTask.rewardId || undefined,
       };
       addTask(task);
-      setNewTask({ title: '', description: '', points: 10, childId: '' });
+      setNewTask({ title: '', description: '', points: 10, childId: '', rewardId: '' });
       setOpenTaskDialog(false);
+    }
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setEditTaskTitle(task.title);
+    setEditTaskDescription(task.description);
+    setEditTaskPoints(task.points);
+    setEditTaskRewardId(task.rewardId || '');
+    setEditTaskDialog(true);
+  };
+
+  const handleUpdateTask = () => {
+    if (editingTask && editTaskTitle.trim()) {
+      updateTask(editingTask.id, {
+        title: editTaskTitle,
+        description: editTaskDescription,
+        points: editTaskPoints,
+        rewardId: editTaskRewardId || undefined,
+      });
+      setEditTaskDialog(false);
+      setEditingTask(null);
+    }
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
+      deleteTask(taskId);
     }
   };
 
@@ -146,6 +189,12 @@ export default function ParentDashboard() {
     addReward(reward);
   };
 
+  const handleDeleteReward = (rewardId: string) => {
+    if (confirm('Tem certeza que deseja excluir esta recompensa?')) {
+      deleteReward(rewardId);
+    }
+  };
+
   const handleApproveTask = (task: Task) => {
     updateTask(task.id, { status: 'approved', approvedAt: new Date() });
     if (task.childId) {
@@ -159,14 +208,7 @@ export default function ParentDashboard() {
 
   const pendingApprovalTasks = tasks.filter(t => t.status === 'completed');
   const approvedTasks = tasks.filter(t => t.status === 'approved');
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center">
-        <div className="text-gray-600">Carregando...</div>
-      </div>
-    );
-  }
+  const activeTasks = tasks.filter(t => t.status !== 'deleted');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
@@ -178,34 +220,15 @@ export default function ParentDashboard() {
             <p className="text-sm text-gray-600">Transforme a rotina da sua criança em uma aventura cheia de conquistas.</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-right hidden md:block">
-              <p className="text-sm font-medium text-gray-800">{user.name}</p>
-              <p className="text-xs text-gray-500">{user.email}</p>
-            </div>
-            <Button onClick={handleLogout} variant="outline" className="gap-2">
-              <LogOut className="w-4 h-4" />
-              Sair
+            <Button onClick={() => router.push('/')} variant="outline" className="gap-2">
+              <Home className="w-4 h-4" />
+              Início
             </Button>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Family Code Display */}
-        {user.familyCode && (
-          <Alert className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
-            <Key className="w-5 h-5 text-purple-600" />
-            <AlertDescription className="ml-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-gray-800">Código da Família: <span className="text-purple-600 text-lg tracking-wider">{user.familyCode}</span></p>
-                  <p className="text-sm text-gray-600">Compartilhe este código com seus filhos para que eles possam criar suas contas</p>
-                </div>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
         {/* Dica Inteligente */}
         <Card className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
           <CardContent className="py-4">
@@ -230,13 +253,13 @@ export default function ParentDashboard() {
               <Users className="w-4 h-4" />
               Crianças
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="gap-2">
-              <ListTodo className="w-4 h-4" />
-              Tarefas
-            </TabsTrigger>
             <TabsTrigger value="rewards" className="gap-2">
               <Gift className="w-4 h-4" />
               Recompensas
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="gap-2">
+              <ListTodo className="w-4 h-4" />
+              Tarefas
             </TabsTrigger>
             <TabsTrigger value="approvals" className="gap-2">
               <Clock className="w-4 h-4" />
@@ -268,7 +291,7 @@ export default function ParentDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold text-gray-800">{tasks.filter(t => t.status === 'pending').length}</p>
+                  <p className="text-3xl font-bold text-gray-800">{activeTasks.filter(t => t.status === 'pending').length}</p>
                   <p className="text-sm text-gray-600">aguardando conclusão</p>
                 </CardContent>
               </Card>
@@ -298,7 +321,7 @@ export default function ParentDashboard() {
                 ) : (
                   <div className="space-y-4">
                     {children.map(child => {
-                      const childTasks = tasks.filter(t => t.childId === child.id);
+                      const childTasks = activeTasks.filter(t => t.childId === child.id);
                       const completedCount = childTasks.filter(t => t.status === 'approved').length;
                       return (
                         <div key={child.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -319,9 +342,8 @@ export default function ParentDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Suggestions Tab - MÓDULO COMPLETO */}
+          {/* Suggestions Tab */}
           <TabsContent value="suggestions" className="space-y-6">
-            {/* Categorias de Tarefas */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -459,9 +481,6 @@ export default function ParentDashboard() {
                                   <Plus className="w-4 h-4" />
                                   Adicionar Pacote Completo
                                 </Button>
-                                <p className="text-xs text-center text-gray-500 mt-2">
-                                  Missão adicionada! Seu filho tem mais uma chance de evoluir.
-                                </p>
                               </CardContent>
                             </Card>
                           ))}
@@ -586,8 +605,30 @@ export default function ParentDashboard() {
                     {children.map(child => (
                       <Card key={child.id} className="border-2">
                         <CardHeader>
-                          <CardTitle className="text-xl">{child.name}</CardTitle>
-                          {child.age && <CardDescription>{child.age} anos</CardDescription>}
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-xl">{child.name}</CardTitle>
+                              {child.age && <CardDescription>{child.age} anos</CardDescription>}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditChild(child)}
+                                className="gap-1"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteChild(child.id)}
+                                className="gap-1 text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-2">
@@ -602,7 +643,7 @@ export default function ParentDashboard() {
                             <div className="flex justify-between">
                               <span className="text-sm text-gray-600">Tarefas Concluídas:</span>
                               <span className="font-semibold text-blue-600">
-                                {tasks.filter(t => t.childId === child.id && t.status === 'approved').length}
+                                {activeTasks.filter(t => t.childId === child.id && t.status === 'approved').length}
                               </span>
                             </div>
                           </div>
@@ -613,118 +654,42 @@ export default function ParentDashboard() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {/* Tasks Tab */}
-          <TabsContent value="tasks" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Tarefas e Missões</CardTitle>
-                    <CardDescription>Crie e gerencie tarefas para as crianças</CardDescription>
-                  </div>
-                  <Button onClick={() => setOpenTaskDialog(true)} className="gap-2" disabled={children.length === 0}>
-                    <Plus className="w-4 h-4" />
-                    Nova Tarefa
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {tasks.length === 0 ? (
-                  <div className="text-center py-12">
-                    <ListTodo className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">Nenhuma tarefa criada</p>
-                    <p className="text-sm text-gray-400">Crie tarefas para as crianças completarem</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {tasks.map(task => {
-                      const child = children.find(c => c.id === task.childId);
-                      return (
-                        <Card key={task.id} className="border-l-4 border-l-blue-500">
-                          <CardContent className="pt-6">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="font-semibold text-gray-800">{task.title}</h3>
-                                  <Badge variant={task.status === 'approved' ? 'default' : task.status === 'completed' ? 'secondary' : 'outline'}>
-                                    {task.status === 'approved' ? 'Aprovada' : task.status === 'completed' ? 'Aguardando' : 'Pendente'}
-                                  </Badge>
-                                </div>
-                                <p className="text-sm text-gray-600 mb-2">{task.description}</p>
-                                <div className="flex items-center gap-4 text-sm">
-                                  <span className="text-gray-600">Para: <strong>{child?.name}</strong></span>
-                                  <span className="text-green-600 font-semibold">+{task.points} XP</span>
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Dialog para criar tarefa manual */}
-            <Dialog open={openTaskDialog} onOpenChange={setOpenTaskDialog}>
+            {/* Dialog de Edição de Criança */}
+            <Dialog open={editChildDialog} onOpenChange={setEditChildDialog}>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Criar Nova Tarefa</DialogTitle>
-                  <DialogDescription>Defina uma missão para a criança completar</DialogDescription>
+                  <DialogTitle>Editar Criança</DialogTitle>
+                  <DialogDescription>Atualize as informações da criança</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 pt-4">
                   <div>
-                    <Label htmlFor="taskChild">Para qual criança?</Label>
-                    <select
-                      id="taskChild"
-                      value={newTask.childId}
-                      onChange={(e) => setNewTask({ ...newTask, childId: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
-                    >
-                      <option value="">Selecione uma criança</option>
-                      {children.map(child => (
-                        <option key={child.id} value={child.id}>{child.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="taskTitle">Título da Tarefa</Label>
+                    <Label htmlFor="editChildName">Nome da Criança</Label>
                     <Input
-                      id="taskTitle"
-                      value={newTask.title}
-                      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                      placeholder="Ex: Arrumar a cama"
+                      id="editChildName"
+                      value={editChildName}
+                      onChange={(e) => setEditChildName(e.target.value)}
+                      placeholder="Ex: João"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="taskDesc">Descrição</Label>
-                    <Textarea
-                      id="taskDesc"
-                      value={newTask.description}
-                      onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                      placeholder="Descreva o que precisa ser feito..."
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="taskPoints">Pontos (XP)</Label>
+                    <Label htmlFor="editChildAge">Idade</Label>
                     <Input
-                      id="taskPoints"
+                      id="editChildAge"
                       type="number"
-                      value={newTask.points}
-                      onChange={(e) => setNewTask({ ...newTask, points: parseInt(e.target.value) || 0 })}
-                      min="1"
+                      value={editChildAge}
+                      onChange={(e) => setEditChildAge(parseInt(e.target.value) || 6)}
+                      min="3"
+                      max="12"
                     />
                   </div>
-                  <Button onClick={handleAddTask} className="w-full">Criar Tarefa</Button>
+                  <Button onClick={handleUpdateChild} className="w-full">Salvar Alterações</Button>
                 </div>
               </DialogContent>
             </Dialog>
           </TabsContent>
 
-          {/* Rewards Tab */}
+          {/* Rewards Tab - AGORA VEM ANTES DE TASKS */}
           <TabsContent value="rewards" className="space-y-6">
             <Card>
               <CardHeader>
@@ -793,8 +758,22 @@ export default function ParentDashboard() {
                       <Card key={reward.id} className={`border-2 ${reward.claimed ? 'opacity-50' : ''}`}>
                         <CardHeader>
                           <div className="flex items-start justify-between">
-                            <CardTitle className="text-lg">{reward.title}</CardTitle>
-                            {reward.claimed && <Badge variant="secondary">Resgatada</Badge>}
+                            <div className="flex-1">
+                              <CardTitle className="text-lg">{reward.title}</CardTitle>
+                            </div>
+                            <div className="flex gap-2">
+                              {reward.claimed && <Badge variant="secondary">Resgatada</Badge>}
+                              {!reward.claimed && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteReward(reward.id)}
+                                  className="gap-1 text-red-600 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </CardHeader>
                         <CardContent>
@@ -810,6 +789,218 @@ export default function ParentDashboard() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Tasks Tab - AGORA VEM DEPOIS DE REWARDS */}
+          <TabsContent value="tasks" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Tarefas e Missões</CardTitle>
+                    <CardDescription>Crie e gerencie tarefas para as crianças</CardDescription>
+                  </div>
+                  <Button onClick={() => setOpenTaskDialog(true)} className="gap-2" disabled={children.length === 0}>
+                    <Plus className="w-4 h-4" />
+                    Nova Tarefa
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {activeTasks.length === 0 ? (
+                  <div className="text-center py-12">
+                    <ListTodo className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">Nenhuma tarefa criada</p>
+                    <p className="text-sm text-gray-400">Crie tarefas para as crianças completarem</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {activeTasks.map(task => {
+                      const child = children.find(c => c.id === task.childId);
+                      const associatedReward = task.rewardId ? rewards.find(r => r.id === task.rewardId) : null;
+                      return (
+                        <Card key={task.id} className="border-l-4 border-l-blue-500">
+                          <CardContent className="pt-6">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="font-semibold text-gray-800">{task.title}</h3>
+                                  <Badge variant={task.status === 'approved' ? 'default' : task.status === 'completed' ? 'secondary' : 'outline'}>
+                                    {task.status === 'approved' ? 'Aprovada' : task.status === 'completed' ? 'Aguardando' : 'Pendente'}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                                <div className="flex items-center gap-4 text-sm flex-wrap">
+                                  <span className="text-gray-600">Para: <strong>{child?.name}</strong></span>
+                                  <span className="text-green-600 font-semibold">+{task.points} XP</span>
+                                  {associatedReward && (
+                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
+                                      🎁 {associatedReward.title}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEditTask(task)}
+                                  className="gap-1"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  className="gap-1 text-red-600 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Dialog para criar tarefa manual */}
+            <Dialog open={openTaskDialog} onOpenChange={setOpenTaskDialog}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Criar Nova Tarefa</DialogTitle>
+                  <DialogDescription>Defina uma missão para a criança completar</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div>
+                    <Label htmlFor="taskChild">Para qual criança?</Label>
+                    <select
+                      id="taskChild"
+                      value={newTask.childId}
+                      onChange={(e) => setNewTask({ ...newTask, childId: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md"
+                    >
+                      <option value="">Selecione uma criança</option>
+                      {children.map(child => (
+                        <option key={child.id} value={child.id}>{child.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="taskTitle">Título da Tarefa</Label>
+                    <Input
+                      id="taskTitle"
+                      value={newTask.title}
+                      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                      placeholder="Ex: Arrumar a cama"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="taskDesc">Descrição</Label>
+                    <Textarea
+                      id="taskDesc"
+                      value={newTask.description}
+                      onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                      placeholder="Descreva o que precisa ser feito..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="taskPoints">Pontos (XP)</Label>
+                    <Input
+                      id="taskPoints"
+                      type="number"
+                      value={newTask.points}
+                      onChange={(e) => setNewTask({ ...newTask, points: parseInt(e.target.value) || 0 })}
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="taskReward">Associar Recompensa (Opcional)</Label>
+                    <select
+                      id="taskReward"
+                      value={newTask.rewardId}
+                      onChange={(e) => setNewTask({ ...newTask, rewardId: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md"
+                    >
+                      <option value="">Nenhuma recompensa</option>
+                      {rewards.filter(r => !r.claimed).map(reward => (
+                        <option key={reward.id} value={reward.id}>
+                          {reward.title} ({reward.pointsRequired} pts)
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Vincule uma recompensa específica a esta tarefa
+                    </p>
+                  </div>
+                  <Button onClick={handleAddTask} className="w-full">Criar Tarefa</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Dialog de Edição de Tarefa */}
+            <Dialog open={editTaskDialog} onOpenChange={setEditTaskDialog}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Editar Tarefa</DialogTitle>
+                  <DialogDescription>Atualize as informações da tarefa</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div>
+                    <Label htmlFor="editTaskTitle">Título da Tarefa</Label>
+                    <Input
+                      id="editTaskTitle"
+                      value={editTaskTitle}
+                      onChange={(e) => setEditTaskTitle(e.target.value)}
+                      placeholder="Ex: Arrumar a cama"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editTaskDesc">Descrição</Label>
+                    <Textarea
+                      id="editTaskDesc"
+                      value={editTaskDescription}
+                      onChange={(e) => setEditTaskDescription(e.target.value)}
+                      placeholder="Descreva o que precisa ser feito..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editTaskPoints">Pontos (XP)</Label>
+                    <Input
+                      id="editTaskPoints"
+                      type="number"
+                      value={editTaskPoints}
+                      onChange={(e) => setEditTaskPoints(parseInt(e.target.value) || 0)}
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editTaskReward">Associar Recompensa (Opcional)</Label>
+                    <select
+                      id="editTaskReward"
+                      value={editTaskRewardId}
+                      onChange={(e) => setEditTaskRewardId(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md"
+                    >
+                      <option value="">Nenhuma recompensa</option>
+                      {rewards.filter(r => !r.claimed).map(reward => (
+                        <option key={reward.id} value={reward.id}>
+                          {reward.title} ({reward.pointsRequired} pts)
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Vincule uma recompensa específica a esta tarefa
+                    </p>
+                  </div>
+                  <Button onClick={handleUpdateTask} className="w-full">Salvar Alterações</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Approvals Tab */}

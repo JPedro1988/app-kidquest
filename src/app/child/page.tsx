@@ -18,10 +18,14 @@ export default function ChildDashboard() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showRewardDialog, setShowRewardDialog] = useState(false);
   const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null);
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    if (profile !== 'child') {
+    // Only redirect if profile is explicitly set to something other than 'child'
+    if (profile !== null && profile !== 'child') {
       router.push('/');
+    } else {
+      setIsChecking(false);
     }
   }, [profile, router]);
 
@@ -62,6 +66,20 @@ export default function ChildDashboard() {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  };
+
+  // Show loading while checking profile
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-500 via-purple-500 to-orange-400 flex items-center justify-center">
+        <div className="text-white text-xl">Carregando...</div>
+      </div>
+    );
+  }
+
   if (!selectedChild) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-500 via-purple-500 to-orange-400 flex items-center justify-center p-4">
@@ -101,7 +119,7 @@ export default function ChildDashboard() {
               </div>
             )}
             <div className="mt-6 text-center">
-              <Button onClick={logout} variant="outline">
+              <Button onClick={handleLogout} variant="outline">
                 <LogOut className="w-4 h-4 mr-2" />
                 Voltar
               </Button>

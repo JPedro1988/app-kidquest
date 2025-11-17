@@ -8,10 +8,13 @@ interface AppContextType extends AppState {
   setSelectedChild: (child: Child | null) => void;
   addChild: (child: Child) => void;
   updateChild: (childId: string, updates: Partial<Child>) => void;
+  deleteChild: (childId: string) => void;
   addTask: (task: Task) => void;
   updateTask: (taskId: string, updates: Partial<Task>) => void;
+  deleteTask: (taskId: string) => void;
   addReward: (reward: Reward) => void;
   updateReward: (rewardId: string, updates: Partial<Reward>) => void;
+  deleteReward: (rewardId: string) => void;
   updateChildPoints: (childId: string, points: number) => void;
   logout: () => void;
 }
@@ -39,7 +42,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(saved);
           setState({
             ...parsed,
-            profile: null, // Reset profile to avoid auto-redirect
+            profile: parsed.profile || null, // Preserve profile from localStorage
             tasks: parsed.tasks.map((t: Task) => ({
               ...t,
               createdAt: new Date(t.createdAt),
@@ -103,6 +106,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const deleteChild = (childId: string) => {
+    setState(prev => ({
+      ...prev,
+      children: prev.children.filter(c => c.id !== childId),
+      selectedChild: prev.selectedChild?.id === childId ? null : prev.selectedChild,
+    }));
+  };
+
   const addTask = (task: Task) => {
     setState(prev => ({ ...prev, tasks: [...prev.tasks, task] }));
   };
@@ -114,6 +125,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const deleteTask = (taskId: string) => {
+    setState(prev => ({
+      ...prev,
+      tasks: prev.tasks.filter(t => t.id !== taskId),
+    }));
+  };
+
   const addReward = (reward: Reward) => {
     setState(prev => ({ ...prev, rewards: [...prev.rewards, reward] }));
   };
@@ -122,6 +140,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({
       ...prev,
       rewards: prev.rewards.map(r => r.id === rewardId ? { ...r, ...updates } : r),
+    }));
+  };
+
+  const deleteReward = (rewardId: string) => {
+    setState(prev => ({
+      ...prev,
+      rewards: prev.rewards.filter(r => r.id !== rewardId),
     }));
   };
 
@@ -152,10 +177,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSelectedChild,
         addChild,
         updateChild,
+        deleteChild,
         addTask,
         updateTask,
+        deleteTask,
         addReward,
         updateReward,
+        deleteReward,
         updateChildPoints,
         logout,
       }}
