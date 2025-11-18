@@ -1611,8 +1611,19 @@ export default function ParentDashboard() {
                       <Card key={pkg.id} className="border-2 border-purple-200 dark:border-purple-700 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900 dark:to-pink-900">
                         <CardHeader className="pb-3">
                           <CardTitle className="text-base sm:text-lg">{pkg.name}</CardTitle>
-                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">{pkg.description}</p>
-                          <Badge className="w-fit">{pkg.tasks.length} tarefas</Badge>
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-2">{pkg.description}</p>
+                          <Badge className="w-fit mb-2">{pkg.tasks.length} tarefas incluídas</Badge>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-purple-700 dark:text-purple-300">O que está incluído:</p>
+                            <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                              {pkg.tasks.map((task, idx) => (
+                                <li key={idx} className="flex items-start gap-1">
+                                  <span className="text-purple-500">•</span>
+                                  <span>{task.title} ({task.points} pts)</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         </CardHeader>
                         <CardContent>
                           {children.length > 0 ? (
@@ -1647,8 +1658,7 @@ export default function ParentDashboard() {
                     const tasks = getTasksByCategory(category.id);
                     return (
                       <div key={category.id} className="mb-6">
-                        <h4 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2">
-                          <span className="text-2xl">{category.icon}</span>
+                        <h4 className="text-base sm:text-lg font-semibold mb-3">
                           {category.name}
                         </h4>
                         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1693,7 +1703,8 @@ export default function ParentDashboard() {
                         </div>
                       </div>
                     );
-                  })}</div>
+                  })}
+                </div>
 
                 {/* Sugestões de Recompensas */}
                 <div>
@@ -1703,10 +1714,11 @@ export default function ParentDashboard() {
                   </h3>
                   {taskCategories.map(category => {
                     const categoryRewards = getRewardsByCategory(category.id);
+                    if (categoryRewards.length === 0) return null;
+                    
                     return (
                       <div key={category.id} className="mb-6">
-                        <h4 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2">
-                          <span className="text-2xl">{category.icon}</span>
+                        <h4 className="text-base sm:text-lg font-semibold mb-3">
                           {category.name}
                         </h4>
                         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
